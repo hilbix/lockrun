@@ -1,0 +1,15 @@
+Exclusively run something by placing a file lock
+# $Header$
+#
+# $Log$
+# Revision 1.1  2008-08-18 23:42:44  tino
+# First commit
+#
+
+This opens a file, places a lock on the file, and if obtained, runs
+some other program.  If this program terminates, the lock is removed.
+
+If there already is a lock on the file, it waits for the lock to be aquired.
+With option -n it does not wait for the lock and instead returns false.
+
+To remove the lockfile, you can do 'lockrun "file" rm -f "file"'.

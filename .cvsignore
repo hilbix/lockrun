@@ -1,0 +1,6 @@
+Makefile
+Makefile.md5
+*.d
+?*.cvsignore*
+lockrun
+lockrun_version.h
