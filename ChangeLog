@@ -1,0 +1,4 @@
+2008-08-19  Valentin Hilbig  <tino@zoo.03.softkill.net>
+
+	* lockrun.c (main): printing log file name on error
+	* lockrun.c (main): Option -s added

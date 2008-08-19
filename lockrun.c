@@ -18,6 +18,9 @@
  * USA
  *
  * $Log$
+ * Revision 1.3  2008-08-19 01:19:52  tino
+ * Print lockfile on lockfile error
+ *
  * Revision 1.2  2008-08-19 00:58:13  tino
  * Option -s (shared/read lock)
  *
@@ -87,7 +90,7 @@ main(int argc, char **argv)
       if (no_wait)
 	{
 	  if (verbose>0)
-	    fprintf(stderr, "%s: unable to aquire lock\n", argv[argn]);
+	    fprintf(stderr, "%s: unable to aquire lock %s\n", argv[argn], argv[argn-1]);
 	  return 1;
 	}
       if (verbose>0)
