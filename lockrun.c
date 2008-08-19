@@ -18,9 +18,11 @@
  * USA
  *
  * $Log$
+ * Revision 1.2  2008-08-19 00:58:13  tino
+ * Option -s (shared/read lock)
+ *
  * Revision 1.1  2008-08-18 23:42:58  tino
  * First commit
- *
  */
 
 #include "tino/proc.h"
@@ -34,7 +36,7 @@
 int
 main(int argc, char **argv)
 {
-  int	argn, no_wait, fd, ret, verbose;
+  int	argn, no_wait, fd, ret, verbose, shared;
   char	*cause;
   pid_t	pid;
   struct flock	lk;
@@ -58,6 +60,10 @@ main(int argc, char **argv)
 		      -1,
 		      
 		      TINO_GETOPT_FLAG
+		      "s	get a shared lock (default: exclusive)"
+		      , &shared,
+		      
+		      TINO_GETOPT_FLAG
 		      TINO_GETOPT_MIN
 		      "v	verbose, print exit status on error"
 		      , &verbose,
@@ -72,7 +78,7 @@ main(int argc, char **argv)
     tino_exit("%s: cannot open %s", argv[argn+1], argv[argn]);
   argn++;
 
-  lk.l_type	= F_WRLCK;
+  lk.l_type	= shared ? F_RDLCK : F_WRLCK;
   lk.l_whence	= 0;
   lk.l_start	= 0;
   lk.l_len	= 0;
