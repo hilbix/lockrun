@@ -1,1 +1,4 @@
-Shared lock added (option -s)
+Lockfile unlink added (option -u)
+Lock wait time added (option -w)
+
+Option -u is very experimental.
