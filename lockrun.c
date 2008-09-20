@@ -18,16 +18,17 @@
  * USA
  *
  * $Log$
+ * Revision 1.4  2008-09-20 21:32:54  tino
+ * Option -u added
+ *
  * Revision 1.3  2008-08-19 01:19:52  tino
  * Print lockfile on lockfile error
  *
  * Revision 1.2  2008-08-19 00:58:13  tino
  * Option -s (shared/read lock)
- *
- * Revision 1.1  2008-08-18 23:42:58  tino
- * First commit
  */
 
+#include "tino/fileerr.h"
 #include "tino/proc.h"
 #include "tino/getopt.h"
 
@@ -36,17 +37,43 @@
 
 #include "lockrun_version.h"
 
+static const char lockrun_signature[]=
+"THIS IS A LOCKFILE CREATED BY THE COMMAND lockrun.\n"
+"IT VANISHES USUALLY WHEN IT IS NO MORE NEEDED.\n"
+"YOU CAN REMOVE IT SAFELY IF THE FILE IS LEFT OVER\n"
+"AND NO MORE lockrun PROCESS KEEPS THE LOCK.\n"
+"THIS FILE SHALL ONLY CONTAIN THIS MESSAGE,\n"
+"INCLUDING THE LAST LINEFEED, BUT NOTHING ELSE.\n";
+
+static int
+signature(int fd, const char *name)
+{
+  char	cmp[sizeof lockrun_signature];
+  int	len;
+
+  tino_file_seek_uA(fd, 0, name);
+  len	= tino_file_readA(fd, cmp, sizeof cmp, name);
+  if (!len)
+    return 0;
+
+  if (len!=(sizeof lockrun_signature)-1 || memcmp(cmp, lockrun_signature, (sizeof lockrun_signature)-1))
+    tino_exit("%s: lockfile signature mismatch", name);
+
+  return 1;
+}
+
 int
 main(int argc, char **argv)
 {
   int	argn, no_wait, fd, ret, verbose, shared;
+  int	create_unlink, fd2;
+  const char	*name;
   char	*cause;
   pid_t	pid;
-  struct flock	lk;
 
   argn	= tino_getopt(argc, argv, 2, 0,
 		      TINO_GETOPT_VERSION(LOCKRUN_VERSION)
-		      " file cmd [args..]",
+		      " lockfile cmd [args..]",
 
 		      TINO_GETOPT_USAGE
 		      "h	this help"
@@ -65,7 +92,12 @@ main(int argc, char **argv)
 		      TINO_GETOPT_FLAG
 		      "s	get a shared lock (default: exclusive)"
 		      , &shared,
-		      
+
+		      TINO_GETOPT_FLAG
+		      "u	creates and unlinks lockfile\n"
+		      "		Shared locks are supported if all use -u"
+		      , &create_unlink,
+
 		      TINO_GETOPT_FLAG
 		      TINO_GETOPT_MIN
 		      "v	verbose, print exit status on error"
@@ -77,28 +109,65 @@ main(int argc, char **argv)
   if (argn<=0)
     return 1;
 
-  if ((fd=open(argv[argn], O_CREAT|O_RDWR, 0700))==-1)
-    tino_exit("%s: cannot open %s", argv[argn+1], argv[argn]);
+  name	= argv[argn];
   argn++;
 
-  lk.l_type	= shared ? F_RDLCK : F_WRLCK;
-  lk.l_whence	= 0;
-  lk.l_start	= 0;
-  lk.l_len	= 0;
-  if (fcntl(fd, F_SETLK, &lk))
+  fd2	= 0;
+  for (;; tino_file_closeE(fd))
     {
-      if (no_wait)
+      if ((fd=open(name, O_CREAT|O_RDWR, 0700))==-1)
+	tino_exit("%s: cannot open %s", argv[argn], name);
+
+      if (create_unlink && !tino_file_lock_exclusiveA(fd, 0, name))
 	{
-	  if (verbose>0)
-	    fprintf(stderr, "%s: unable to aquire lock %s\n", argv[argn], argv[argn-1]);
-	  return 1;
+	  /* We have the exclusive lock, so no other process is using
+	   * that file.  (If we cannot lock, the signature is written
+	   * by another process.)
+	   *
+	   * Place the signature and unlock file.
+	   */
+	  if (!signature(fd, name))
+	    tino_file_writeA(fd, lockrun_signature, (sizeof lockrun_signature)-1, name);
+	  tino_file_unlockA(fd, name);
 	}
-      if (verbose>0)
-	fprintf(stderr, "%s: waiting for lock\n", argv[argn]);
-      while (fcntl(fd, F_SETLKW, &lk))
-	if (errno!=EINTR)
-	  tino_exit("%s: fcnt(SETLKW)", argv[argn]);
+
+      if (tino_file_lockA(fd, !shared, 0, name))
+	{
+	  if (no_wait)
+	    {
+	      if (verbose>0)
+		fprintf(stderr, "%s: unable to aquire lock %s\n", argv[argn], name);
+	      return 1;
+	    }
+	  if (verbose>0)
+	    fprintf(stderr, "%s: waiting for lock\n", argv[argn]);
+	  tino_file_lockA(fd, !shared, 1, name);
+	}
+
+      /* We now have a lock.  If it is create_unlink, check the file
+       * again, as it might be, that it was unlink()ed.
+       *
+       * This can be done with a stat() call and comparing the inode number.
+       *
+       * No signature() checking is done here, as we can lock
+       * non-created files, too.
+       */
+#if 0
+      /* it cannot hurt to always check the file
+       */
+      if (create_unlink)
+#endif
+	{
+	  tino_file_stat_t st1, st2;
+
+	  if (tino_file_statE(name, &st1) || tino_file_stat_fdE(fd, &st2))
+	    continue;
+	  if (STAT2CMP(st1,st2,dev) || STAT2CMP(st1,st2,ino))
+	    continue;
+	}
+      break;
     }
+
   if (verbose>0)
     fprintf(stderr, "%s: got lock\n", argv[argn]);
 
@@ -110,8 +179,14 @@ main(int argc, char **argv)
   if (cause && verbose>=0)
     fprintf(stderr, "%s: %s\n", argv[argn], cause);
 
-  /* unlink is a bad idea, this may break another lock!
-   */
+  if (create_unlink)
+    {
+      /* If somebody else keeps a lock on the file,
+       * it will be removed by this other process
+       */
+      if (!tino_file_lock_exclusiveA(fd, 0, name) && signature(fd, name))
+	tino_file_unlinkE(name);
+    }
 
   return ret;
 }

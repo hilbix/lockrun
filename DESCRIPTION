@@ -2,14 +2,18 @@ Exclusively run something by placing a file lock
 # $Header$
 #
 # $Log$
+# Revision 1.2  2008-09-20 21:32:54  tino
+# Option -u added
+#
 # Revision 1.1  2008-08-18 23:42:44  tino
 # First commit
-#
 
-This opens a file, places a lock on the file, and if obtained, runs
-some other program.  If this program terminates, the lock is removed.
+Lockrun opens or creates a file, places a lock on the file, and if obtained,
+runs some other program.  If the program terminates, the lock is removed.
 
 If there already is a lock on the file, it waits for the lock to be aquired.
 With option -n it does not wait for the lock and instead returns false.
 
-To remove the lockfile, you can do 'lockrun "file" rm -f "file"'.
+With option -u a lockfile can be created which is safely removed after it
+is no more needed (this option is experimental).  To remove a locked file
+use something like 'lockrun "file" rm -f "file"'.
