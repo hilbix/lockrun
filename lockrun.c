@@ -18,6 +18,9 @@
  * USA
  *
  * $Log$
+ * Revision 1.5  2008-09-20 23:11:21  tino
+ * Option -w
+ *
  * Revision 1.4  2008-09-20 21:32:54  tino
  * Option -u added
  *
@@ -28,6 +31,7 @@
  * Option -s (shared/read lock)
  */
 
+#include "tino/alarm.h"
 #include "tino/fileerr.h"
 #include "tino/proc.h"
 #include "tino/getopt.h"
@@ -44,6 +48,15 @@ static const char lockrun_signature[]=
 "AND NO MORE lockrun PROCESS KEEPS THE LOCK.\n"
 "THIS FILE SHALL ONLY CONTAIN THIS MESSAGE,\n"
 "INCLUDING THE LAST LINEFEED, BUT NOTHING ELSE.\n";
+
+static int
+lock_timeout(void *user, long delta, time_t now, long run)
+{
+  char **argv=user;
+
+  fprintf(stderr, "%s: timeout waiting for lock %s\n", argv[1], argv[1]);
+  exit(1);
+}
 
 static int
 signature(int fd, const char *name)
@@ -66,14 +79,17 @@ int
 main(int argc, char **argv)
 {
   int	argn, no_wait, fd, ret, verbose, shared;
-  int	create_unlink, fd2;
+  int	create_unlink;
   const char	*name;
   char	*cause;
   pid_t	pid;
+  long	timeout;
 
   argn	= tino_getopt(argc, argv, 2, 0,
 		      TINO_GETOPT_VERSION(LOCKRUN_VERSION)
-		      " lockfile cmd [args..]",
+		      " lockfile cmd [args..]\n"
+		      "	Returns false if it was unable to aquire lock,\n"
+		      "	else returns the return value of cmd",
 
 		      TINO_GETOPT_USAGE
 		      "h	this help"
@@ -95,8 +111,13 @@ main(int argc, char **argv)
 
 		      TINO_GETOPT_FLAG
 		      "u	creates and unlinks lockfile\n"
-		      "		Shared locks are supported if all use -u"
+		      "		Shared locks are supported if all lockruns use -u"
 		      , &create_unlink,
+
+		      TINO_GETOPT_LONGINT
+		      TINO_GETOPT_TIMESPEC
+		      "w time	maximum wait time, 0 is unlimited"
+		      , &timeout,
 
 		      TINO_GETOPT_FLAG
 		      TINO_GETOPT_MIN
@@ -109,13 +130,22 @@ main(int argc, char **argv)
   if (argn<=0)
     return 1;
 
+  if ((long)(int)timeout!=timeout)
+    {
+      if (verbose>=0)
+	fprintf(stderr, "lockrun: timeout value too high, reduced to MAXINT\n");
+      timeout	= -1;
+    }
+
+  if (timeout)
+    tino_alarm_set((int)timeout, lock_timeout, argv+argn);
+
   name	= argv[argn];
   argn++;
 
-  fd2	= 0;
   for (;; tino_file_closeE(fd))
     {
-      if ((fd=open(name, O_CREAT|O_RDWR, 0700))==-1)
+      if ((fd=open(name, O_CREAT|O_RDWR|O_APPEND, 0700))==-1)
 	tino_exit("%s: cannot open %s", argv[argn], name);
 
       if (create_unlink && !tino_file_lock_exclusiveA(fd, 0, name))
