@@ -18,6 +18,9 @@
  * USA
  *
  * $Log$
+ * Revision 1.6  2008-10-15 23:55:36  tino
+ * Bugfix for large files
+ *
  * Revision 1.5  2008-09-20 23:11:21  tino
  * Option -w
  *
@@ -145,7 +148,7 @@ main(int argc, char **argv)
 
   for (;; tino_file_closeE(fd))
     {
-      if ((fd=open(name, O_CREAT|O_RDWR|O_APPEND, 0700))==-1)
+      if ((fd=tino_file_open_createE(name, O_RDWR|O_APPEND, 0700))==-1)
 	tino_exit("%s: cannot open %s", argv[argn], name);
 
       if (create_unlink && !tino_file_lock_exclusiveA(fd, 0, name))
