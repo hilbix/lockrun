@@ -18,6 +18,9 @@
  * USA
  *
  * $Log$
+ * Revision 1.7  2008-10-17 19:02:47  tino
+ * Options -a and -e
+ *
  * Revision 1.6  2008-10-15 23:55:36  tino
  * Bugfix for large files
  *
@@ -83,7 +86,8 @@ main(int argc, char **argv)
 {
   int	argn, no_wait, fd, ret, verbose, shared;
   int	create_unlink;
-  const char	*name;
+  const char	*name, *env_name, *env_append;
+  char	*env[2];
   char	*cause;
   pid_t	pid;
   long	timeout;
@@ -97,6 +101,23 @@ main(int argc, char **argv)
 		      TINO_GETOPT_USAGE
 		      "h	this help"
 		      ,
+
+		      TINO_GETOPT_STRING
+		      "a str	Append PID to the given string for LOCKRUNPID\n"
+		      "		This sets PIDstr instead of PID (PID is numeric).\n"
+		      "		Example to make a shell script single run only:\n"
+		      "		:	[ \"MAGIC$PPID\" = \"$LOCKRUNPID\" ] ||\n"
+		      "		:	lockrun -qna MAGIC /tmp/lock.MAGIC \"$0\" \"$@\" ||\n"
+		      "		:	exit 1"
+		      , &env_append,
+
+		      TINO_GETOPT_STRING
+		      TINO_GETOPT_DEFAULT
+		      "e name	Environment variable to set.  This is set to the\n"
+		      "		PID of the lockrun process (which is the parent PID\n"
+		      "		in the cmd which is run.  Set empty to suppress var"
+		      , &env_name,
+		      "LOCKRUNPID",
 
 		      TINO_GETOPT_FLAG
 		      "n	nowait, terminate if you cannot get the lock"
@@ -204,7 +225,9 @@ main(int argc, char **argv)
   if (verbose>0)
     fprintf(stderr, "%s: got lock\n", argv[argn]);
 
-  pid	= tino_fork_exec(0, 1, 2, argv+argn, NULL, 0, NULL);
+  env[0]	= *env_name ? tino_str_printf("%s=%s%lu", env_name, (env_append ? env_append : ""), (unsigned long)getpid()) : 0;
+  env[1]	= 0;
+  pid	= tino_fork_exec(0, 1, 2, argv+argn, env, 1, NULL);
   if (verbose>0)
     fprintf(stderr, "%s: running as PID %ld\n", argv[argn], (long)pid);
 

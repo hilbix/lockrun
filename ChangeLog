@@ -1,3 +1,7 @@
+2008-10-17  Valentin Hilbig  <tino@firebird.03.softkill.net>
+
+	* lockrun.c (main): Option -a and -e for new env-var LOCKRUNPID
+
 2008-10-16  Valentin Hilbig  <tino@zoo.03.softkill.net>
 
 	* lockrun.c (main): Bugfix: Was unable to open large files

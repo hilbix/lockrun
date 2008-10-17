@@ -1,1 +1,5 @@
-Bugfix release: Large files are now supported, too
+Option -a and -e added.
+
+Lockrun now sets the environment variable LOCKRUNPID to the PID of the
+the lockrun process.  If $PPID is in $LOCKRUNPID you can tell that you
+were forked from lockrun.  Options -a and -e can change that behavior.
