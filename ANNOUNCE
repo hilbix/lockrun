@@ -1,3 +1,7 @@
-Option -c and -d added.
+Option -c, -d and -l added.
 
-With this options you can display a "waiting string" to stdout.
+With option -l you can redirect logging to some other fd, like in
+"lockrun -vl42 cmd 42>file".
+
+With options -c and -d you can display a "waiting string" to stdout.
+If you need it to stderr, try -l2.
