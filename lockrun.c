@@ -18,6 +18,9 @@
  * USA
  *
  * $Log$
+ * Revision 1.8  2009-02-27 11:47:51  tino
+ * Options -c -d -l
+ *
  * Revision 1.7  2008-10-17 19:02:47  tino
  * Options -a and -e
  *
@@ -81,16 +84,31 @@ signature(int fd, const char *name)
   return 1;
 }
 
+static void
+sp(FILE *fd, const char *ptr, char c)
+{
+  while (*ptr++)
+    putc(c, fd);
+}
+
+static void
+bs(FILE *fd, const char *ptr)
+{
+  sp(fd, ptr, '\b');
+}
+
 int
 main(int argc, char **argv)
 {
-  int	argn, no_wait, fd, ret, verbose, shared;
+  int	argn, no_wait, fd, ret, verbose, shared, had_display;
   int	create_unlink;
-  const char	*name, *env_name, *env_append;
+  int	log_fd;
+  const char	*name, *env_name, *env_append, *display_wait, *display_clean;
   char	*env[2];
   char	*cause;
   pid_t	pid;
   long	timeout;
+  FILE	*display;
 
   argn	= tino_getopt(argc, argv, 2, 0,
 		      TINO_GETOPT_VERSION(LOCKRUN_VERSION)
@@ -104,12 +122,24 @@ main(int argc, char **argv)
 
 		      TINO_GETOPT_STRING
 		      "a str	Append PID to the given string for LOCKRUNPID\n"
-		      "		This sets PIDstr instead of PID (PID is numeric).\n"
+		      "		This sets strPID instead of PID (PID is numeric).\n"
 		      "		Example to make a shell script single run only:\n"
 		      "		:	[ \"MAGIC$PPID\" = \"$LOCKRUNPID\" ] ||\n"
 		      "		:	lockrun -qna MAGIC /tmp/lock.MAGIC \"$0\" \"$@\" ||\n"
 		      "		:	exit 1"
 		      , &env_append,
+
+		      TINO_GETOPT_STRING
+		      "c str	cleanup string to print after waiting.  See also -d\n"
+		      "		Default is to backspace-overwrite -d with spaces.\n"
+		      "		If -d is missing, str is backspace-printed while waiting.\n"
+		      "		With -c the cursor is on the start of str, with -d on the end"
+		      , &display_clean,
+
+		      TINO_GETOPT_STRING
+		      "d str	display str while waiting.  See also -c\n"
+		      "		Writes to stdout if -l is not present, else stderr."
+		      , &display_wait,
 
 		      TINO_GETOPT_STRING
 		      TINO_GETOPT_DEFAULT
@@ -118,6 +148,12 @@ main(int argc, char **argv)
 		      "		in the cmd which is run.  Set empty to suppress var"
 		      , &env_name,
 		      "LOCKRUNPID",
+
+		      TINO_GETOPT_INT
+		      TINO_GETOPT_DEFAULT
+		      "l fd	Write logging to this fd, not stderr"
+		      , &log_fd,
+		      -1,
 
 		      TINO_GETOPT_FLAG
 		      "n	nowait, terminate if you cannot get the lock"
@@ -154,6 +190,14 @@ main(int argc, char **argv)
   if (argn<=0)
     return 1;
 
+  display	= stdout;
+  if (log_fd>=0)
+    {
+      display	= stderr;
+      if (log_fd!=2 && dup2(log_fd, 2)!=2)
+	tino_exit("cannot dup %d to stderr", log_fd);
+    }
+
   if ((long)(int)timeout!=timeout)
     {
       if (verbose>=0)
@@ -167,6 +211,7 @@ main(int argc, char **argv)
   name	= argv[argn];
   argn++;
 
+  had_display=0;
   for (;; tino_file_closeE(fd))
     {
       if ((fd=tino_file_open_createE(name, O_RDWR|O_APPEND, 0700))==-1)
@@ -195,6 +240,23 @@ main(int argc, char **argv)
 	    }
 	  if (verbose>0)
 	    fprintf(stderr, "%s: waiting for lock\n", argv[argn]);
+	  if (!had_display && (display_wait || display_clean))
+	    {
+	      if (display_wait)
+		{
+		  fputs(display_wait, display);
+		  had_display	= 1;
+		}
+	      else
+		{
+		  display_wait	= display_clean;
+		  display_clean	= 0;
+		  fputs(display_wait, display);
+		  bs(display, display_wait);
+		  had_display	= -1;
+		}
+	      fflush(display);
+	    }
 	  tino_file_lockA(fd, !shared, 1, name);
 	}
 
@@ -221,6 +283,22 @@ main(int argc, char **argv)
 	}
       break;
     }
+  if (had_display)
+    {
+      if (display_clean)
+	{
+	  fputs(display_clean, display);
+	  fflush(display);
+	}
+      else
+	{
+	  if (had_display>0)
+	    bs(display, display_wait);
+	  sp(display, display_wait, ' ');
+	  bs(display, display_wait);
+	  fflush(display);
+	}
+    }
 
   if (verbose>0)
     fprintf(stderr, "%s: got lock\n", argv[argn]);
@@ -242,6 +320,22 @@ main(int argc, char **argv)
        */
       if (!tino_file_lock_exclusiveA(fd, 0, name) && signature(fd, name))
 	tino_file_unlinkE(name);
+      /* I would like to be able to unlink an fd, that is:
+       * Enumerate all directories which contain references (hardlinks) to the file
+       * and safely (without race conditions) remove one of these entries.
+       *
+       * Well, Unix FS is no database, so we probably will never see this.
+       *
+       * One can emulate that:
+       * a) create an empty temp directory
+       * b) move (rename) the file there, now it is safe
+       * c0) check if the FD still refers to the same file (by comparing inodes)
+       * c1) If c0 fails then hardlink(!) the file back
+       * c2) If c1 fails than bail out, leave the temp directory in place with file (or repeat c1 with a backup filename until it succeeds)
+       * d) unlink in the directory
+       * e) rmdir the directory
+       * However that probably is plain overkill here.
+       */
     }
 
   return ret;
