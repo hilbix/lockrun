@@ -2,11 +2,14 @@ Exclusively run something by placing a file lock
 # $Header$
 #
 # $Log$
+# Revision 1.3  2009-07-27 00:03:49  tino
+# Option -f
+#
 # Revision 1.2  2008-09-20 21:32:54  tino
 # Option -u added
-#
-# Revision 1.1  2008-08-18 23:42:44  tino
-# First commit
+
+This here was done before I got aware of "lckdo" from the debian
+package "moreutils".  It has some different options, though:
 
 Lockrun opens or creates a file, places a lock on the file, and if obtained,
 runs some other program.  If the program terminates, the lock is removed.

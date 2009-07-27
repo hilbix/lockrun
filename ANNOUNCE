@@ -1,7 +1,4 @@
-Option -c, -d and -l added.
+Option -f added
 
-With option -l you can redirect logging to some other fd, like in
-"lockrun -vl42 cmd 42>file".
-
-With options -c and -d you can display a "waiting string" to stdout.
-If you need it to stderr, try -l2.
+If this option is present, this makes lockrun fail if the given file
+to lock is missing.

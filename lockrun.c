@@ -1,6 +1,6 @@
 /* $Header$
  *
- * Copyright (C)2008 Valentin Hilbig <webmaster@scylla-charybdis.com>
+ * Copyright (C)2008-2009 Valentin Hilbig <webmaster@scylla-charybdis.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -18,6 +18,9 @@
  * USA
  *
  * $Log$
+ * Revision 1.9  2009-07-27 00:03:49  tino
+ * Option -f
+ *
  * Revision 1.8  2009-02-27 11:47:51  tino
  * Options -c -d -l
  *
@@ -101,7 +104,7 @@ int
 main(int argc, char **argv)
 {
   int	argn, no_wait, fd, ret, verbose, shared, had_display;
-  int	create_unlink;
+  int	create_unlink, fail_missing;
   int	log_fd;
   const char	*name, *env_name, *env_append, *display_wait, *display_clean;
   char	*env[2];
@@ -149,6 +152,11 @@ main(int argc, char **argv)
 		      , &env_name,
 		      "LOCKRUNPID",
 
+		      TINO_GETOPT_FLAG
+		      "f	fail if lockfile is missing (never creates the file).\n"
+		      "		Only safe with -u if the file is empty and not needed."
+		      , &fail_missing,
+
 		      TINO_GETOPT_INT
 		      TINO_GETOPT_DEFAULT
 		      "l fd	Write logging to this fd, not stderr"
@@ -158,26 +166,48 @@ main(int argc, char **argv)
 		      TINO_GETOPT_FLAG
 		      "n	nowait, terminate if you cannot get the lock"
 		      , &no_wait,
-		      
+#if 0
+		      TINO_GETOPT_FLAG
+		      TINO_GETOPT_DEFAULT
+		      "o fd	keep lock open with the given file descriptor.\n"
+		      "		If the program closes FD, the lock is broken.\n"
+		      "		Default is to take the next free FD.\n"
+		      "		You should not use this with -u"
+		      , &lock_fd,
+		      -1,
+#endif
+#if 0
+		      TINO_GETOPT_STRING
+		      TINO_GETOPT_DEFAULT
+		      "p env	Put the FD of the lock into environment variable\n"
+		      "		This variable is only present for -o or -t"
+		      , &lockfd_env,
+		      "LOCKRUNFD",
+#endif		      
 		      TINO_GETOPT_FLAG
 		      TINO_GETOPT_MIN
 		      "q	quiet, do not print exit status of child"
 		      , &verbose,
 		      -1,
-		      
+#if 0
+		      TINO_GETOPT_FLAG
+		      "r	run command non-forking.  Implies -o.\n"
+		      "		Incompatible with -u"
+		      TINO_GETOPT_FLAG
+		      , &direct_run,
+#endif		      
 		      TINO_GETOPT_FLAG
 		      "s	get a shared lock (default: exclusive)"
 		      , &shared,
-
+#if 0
 		      TINO_GETOPT_FLAG
-		      "u	creates and unlinks lockfile\n"
+		      "t	test if lock exists (run with /bin/true)"
+		      , &only_test,
+#endif
+		      TINO_GETOPT_FLAG
+		      "u	creates (if no -f present) and unlinks lockfile\n"
 		      "		Shared locks are supported if all lockruns use -u"
 		      , &create_unlink,
-
-		      TINO_GETOPT_LONGINT
-		      TINO_GETOPT_TIMESPEC
-		      "w time	maximum wait time, 0 is unlimited"
-		      , &timeout,
 
 		      TINO_GETOPT_FLAG
 		      TINO_GETOPT_MIN
@@ -185,6 +215,17 @@ main(int argc, char **argv)
 		      , &verbose,
 		      1,
 		      
+		      TINO_GETOPT_LONGINT
+		      TINO_GETOPT_TIMESPEC
+		      "w time	maximum wait time, 0 is unlimited"
+		      , &timeout,
+#if 0
+		      TINO_GETOPT_FLAG
+		      TINO_GETOPT_MIN
+		      "x	exclusive lock (default)"
+		      , &shared,
+		      0,
+#endif
 		      NULL
 		      );
   if (argn<=0)
@@ -214,7 +255,7 @@ main(int argc, char **argv)
   had_display=0;
   for (;; tino_file_closeE(fd))
     {
-      if ((fd=tino_file_open_createE(name, O_RDWR|O_APPEND, 0700))==-1)
+      if ((fd=(fail_missing ? tino_file_openE(name, O_RDWR|O_APPEND) : tino_file_open_createE(name, O_RDWR|O_APPEND, 0700)))==-1)
 	tino_exit("%s: cannot open %s", argv[argn], name);
 
       if (create_unlink && !tino_file_lock_exclusiveA(fd, 0, name))
