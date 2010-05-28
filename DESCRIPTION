@@ -2,6 +2,9 @@ Exclusively run something by placing a file lock
 # $Header$
 #
 # $Log$
+# Revision 1.4  2010-05-28 12:23:33  tino
+# Option -i
+#
 # Revision 1.3  2009-07-27 00:03:49  tino
 # Option -f
 #
@@ -15,7 +18,8 @@ Lockrun opens or creates a file, places a lock on the file, and if obtained,
 runs some other program.  If the program terminates, the lock is removed.
 
 If there already is a lock on the file, it waits for the lock to be aquired.
-With option -n it does not wait for the lock and instead returns false.
+With option -n it does not wait for the lock and instead returns false
+(or true in case option -i is used).
 
 With option -u a lockfile can be created which is safely removed after it
 is no more needed (this option is experimental).  To remove a locked file

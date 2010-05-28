@@ -1,4 +1,9 @@
-Option -f added
+Option -i makes lockrun return success even if the lock could not aquired and the cmd was not run.
 
-If this option is present, this makes lockrun fail if the given file
-to lock is missing.
+Use this if you desparately need the return value of your cmd and not being able to aquire a lock is no failure (i. e. because something else is processing).
+Please note lockrun still returns a non-success value for other type of errors (like disk write error).
+
+For example "lockrun -ni .lock false" now returns 0 (success) if lock cannot be aquired and 1 (false) if the file was lockable.
+So it now is (vastly) the opposite of "lockrun -n .lock true".  Both will fail if, for example, the current directory is not writeable.
+(Note that the lock is only held while the command runs.)
+

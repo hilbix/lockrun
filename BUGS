@@ -1,0 +1,10 @@
+Things to improve before 1.x:
+
+Test -w a little bit more.  There currently is a race condition, where the lockfile is not properly removed, because -w just exit()s lockrun.
+
+Test -u thoroughly.
+
+Test common use cases for -a.
+
+Create test suite.
+

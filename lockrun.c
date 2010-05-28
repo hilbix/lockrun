@@ -18,6 +18,9 @@
  * USA
  *
  * $Log$
+ * Revision 1.10  2010-05-28 12:23:33  tino
+ * Option -i
+ *
  * Revision 1.9  2009-07-27 00:03:49  tino
  * Option -f
  *
@@ -61,13 +64,15 @@ static const char lockrun_signature[]=
 "THIS FILE SHALL ONLY CONTAIN THIS MESSAGE,\n"
 "INCLUDING THE LAST LINEFEED, BUT NOTHING ELSE.\n";
 
+static int ignore_lock_problem;
+
 static int
 lock_timeout(void *user, long delta, time_t now, long run)
 {
   char **argv=user;
 
   fprintf(stderr, "%s: timeout waiting for lock %s\n", argv[1], argv[1]);
-  exit(1);
+  exit(ignore_lock_problem ? 0 : 1);
 }
 
 static int
@@ -156,6 +161,10 @@ main(int argc, char **argv)
 		      "f	fail if lockfile is missing (never creates the file).\n"
 		      "		Only safe with -u if the file is empty and not needed."
 		      , &fail_missing,
+
+		      TINO_GETOPT_FLAG
+		      "i	ignore locking error, return 0 if lock cannot be aquired"
+		      , &ignore_lock_problem,
 
 		      TINO_GETOPT_INT
 		      TINO_GETOPT_DEFAULT
@@ -277,7 +286,7 @@ main(int argc, char **argv)
 	    {
 	      if (verbose>0)
 		fprintf(stderr, "%s: unable to aquire lock %s\n", argv[argn], name);
-	      return 1;
+	      return ignore_lock_problem ? 0 : 1;
 	    }
 	  if (verbose>0)
 	    fprintf(stderr, "%s: waiting for lock\n", argv[argn]);
