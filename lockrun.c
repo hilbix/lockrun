@@ -18,6 +18,9 @@
  * USA
  *
  * $Log$
+ * Revision 1.12  2011-04-20 14:17:59  tino
+ * dist
+ *
  * Revision 1.11  2011-04-20 13:41:06  tino
  * usage and option -m
  *
@@ -74,7 +77,7 @@ lock_timeout(void *user, long delta, time_t now, long run)
 {
   char **argv=user;
 
-  fprintf(stderr, "%s: timeout waiting for lock %s\n", argv[1], argv[1]);
+  fprintf(stderr, "%s: timeout waiting for lock %s\n", argv[1], argv[0]);
   exit(ignore_lock_problem ? 0 : tino_exit_default_code);
 }
 
@@ -231,9 +234,10 @@ main(int argc, char **argv)
 
 		      TINO_GETOPT_FLAG
 		      TINO_GETOPT_MIN
-		      "v	verbose, more detailed logging (see also: -l)"
+		      "v	verbose, more detailed logging (see also: -l)\n"
+		      "		Use twice for more verbosity"
 		      , &verbose,
-		      1,
+		      2,
 		      
 		      TINO_GETOPT_LONGINT
 		      TINO_GETOPT_TIMESPEC
@@ -287,7 +291,11 @@ main(int argc, char **argv)
 	   * Place the signature and unlock file.
 	   */
 	  if (!signature(fd, name))
-	    tino_file_writeA(fd, lockrun_signature, (sizeof lockrun_signature)-1, name);
+	    {
+	      if (verbose>0)
+	        fprintf(stderr, "%s: writing signature to lockfile %s\n", argv[argn], name);
+	      tino_file_writeA(fd, lockrun_signature, (sizeof lockrun_signature)-1, name);
+	    }
 	  tino_file_unlockA(fd, name);
 	}
 
@@ -344,6 +352,10 @@ main(int argc, char **argv)
 	}
       break;
     }
+
+  if (timeout)
+    tino_alarm_stop(lock_timeout, NULL);
+
   if (had_display)
     {
       if (display_clean)
@@ -380,7 +392,14 @@ main(int argc, char **argv)
        * it will be removed by this other process
        */
       if (!tino_file_lock_exclusiveA(fd, 0, name) && signature(fd, name))
-	tino_file_unlinkE(name);
+	{
+	  tino_file_unlinkE(name);
+	  if (verbose>1)
+	    fprintf(stderr, "%s: unlinked lockfile %s\n", argv[argn], name);
+        }
+      else if (verbose>1)
+	fprintf(stderr, "%s: not unlinking lockfile %s\n", argv[argn], name);
+
       /* I would like to be able to unlink an fd, that is:
        * Enumerate all directories which contain references (hardlinks) to the file
        * and safely (without race conditions) remove one of these entries.

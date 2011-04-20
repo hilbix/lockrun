@@ -2,6 +2,9 @@ Exclusively run something by placing a file lock
 # $Header$
 #
 # $Log$
+# Revision 1.5  2011-04-20 14:17:59  tino
+# dist
+#
 # Revision 1.4  2010-05-28 12:23:33  tino
 # Option -i
 #
@@ -11,16 +14,15 @@ Exclusively run something by placing a file lock
 # Revision 1.2  2008-09-20 21:32:54  tino
 # Option -u added
 
-This here was done before I got aware of "lckdo" from the debian
-package "moreutils".  It has some different options, though:
+There is a similar Debian package "lckdo" which has some different features.
 
 Lockrun opens or creates a file, places a lock on the file, and if obtained,
 runs some other program.  If the program terminates, the lock is removed.
 
 If there already is a lock on the file, it waits for the lock to be aquired.
 With option -n it does not wait for the lock and instead returns false
-(or true in case option -i is used).
+or true in case option -i is used.
 
 With option -u a lockfile can be created which is safely removed after it
-is no more needed (this option is experimental).  To remove a locked file
-use something like 'lockrun "file" rm -f "file"'.
+is no more needed (this option is experimental).  To safely remove such a
+locked file after crashes you can use 'lockrun -vvu "file" true'.

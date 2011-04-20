@@ -1,6 +1,9 @@
 2011-04-20  Valentin Hilbig  <tino@firebird.03.softkill.net>
 
 	* lockrun.c (main): usage corrected
+	(lock_timeout): now print correct lockfile name
+	(main): now stop timeout, just in case
+	(main): option -vv to log lockfile signature/unlink action
 
 2009-02-27  Valentin Hilbig  <tino@zoo.03.softkill.net>
 
