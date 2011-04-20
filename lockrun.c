@@ -1,6 +1,6 @@
 /* $Header$
  *
- * Copyright (C)2008-2009 Valentin Hilbig <webmaster@scylla-charybdis.com>
+ * Copyright (C)2008-2011 Valentin Hilbig <webmaster@scylla-charybdis.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -18,6 +18,9 @@
  * USA
  *
  * $Log$
+ * Revision 1.11  2011-04-20 13:41:06  tino
+ * usage and option -m
+ *
  * Revision 1.10  2010-05-28 12:23:33  tino
  * Option -i
  *
@@ -72,7 +75,7 @@ lock_timeout(void *user, long delta, time_t now, long run)
   char **argv=user;
 
   fprintf(stderr, "%s: timeout waiting for lock %s\n", argv[1], argv[1]);
-  exit(ignore_lock_problem ? 0 : 1);
+  exit(ignore_lock_problem ? 0 : tino_exit_default_code);
 }
 
 static int
@@ -121,8 +124,8 @@ main(int argc, char **argv)
   argn	= tino_getopt(argc, argv, 2, 0,
 		      TINO_GETOPT_VERSION(LOCKRUN_VERSION)
 		      " lockfile cmd [args..]\n"
-		      "	Returns false if it was unable to aquire lock,\n"
-		      "	else returns the return value of cmd",
+		      "	Returns false (see -i/-m) if unable to aquire lock,\n"
+		      "	else the return value of cmd",
 
 		      TINO_GETOPT_USAGE
 		      "h	this help"
@@ -133,19 +136,19 @@ main(int argc, char **argv)
 		      "		This sets strPID instead of PID (PID is numeric).\n"
 		      "		Example to make a shell script single run only:\n"
 		      "		:	[ \"MAGIC$PPID\" = \"$LOCKRUNPID\" ] ||\n"
-		      "		:	lockrun -qna MAGIC /tmp/lock.MAGIC \"$0\" \"$@\" ||\n"
+		      "		:	exec lockrun -qna MAGIC /tmp/lock.MAGIC \"$0\" \"$@\" ||\n"
 		      "		:	exit 1"
 		      , &env_append,
 
 		      TINO_GETOPT_STRING
-		      "c str	cleanup string to print after waiting.  See also -d\n"
+		      "c str	Cleanup string to print after waiting.  See also -d\n"
 		      "		Default is to backspace-overwrite -d with spaces.\n"
 		      "		If -d is missing, str is backspace-printed while waiting.\n"
 		      "		With -c the cursor is on the start of str, with -d on the end"
 		      , &display_clean,
 
 		      TINO_GETOPT_STRING
-		      "d str	display str while waiting.  See also -c\n"
+		      "d str	Display str while waiting.  See also -c\n"
 		      "		Writes to stdout if -l is not present, else stderr."
 		      , &display_wait,
 
@@ -158,19 +161,27 @@ main(int argc, char **argv)
 		      "LOCKRUNPID",
 
 		      TINO_GETOPT_FLAG
-		      "f	fail if lockfile is missing (never creates the file).\n"
+		      "f	Fail if lockfile is missing (never creates the file).\n"
 		      "		Only safe with -u if the file is empty and not needed."
 		      , &fail_missing,
 
 		      TINO_GETOPT_FLAG
-		      "i	ignore locking error, return 0 if lock cannot be aquired"
+		      "i	Ignore locking error, return 0 if lock cannot be aquired"
 		      , &ignore_lock_problem,
 
 		      TINO_GETOPT_INT
 		      TINO_GETOPT_DEFAULT
-		      "l fd	Write logging to this fd, not stderr"
+		      "l fd	write Logging to this fd, not stderr"
 		      , &log_fd,
 		      -1,
+
+		      TINO_GETOPT_INT
+		      TINO_GETOPT_DEFAULT
+		      "m code	Mainly return this code if cmd is not run.\n"
+		      "		Library might have other exit codes, -i still works"
+		      , &tino_exit_default_code,
+		      1,
+
 
 		      TINO_GETOPT_FLAG
 		      "n	nowait, terminate if you cannot get the lock"
@@ -195,12 +206,12 @@ main(int argc, char **argv)
 #endif		      
 		      TINO_GETOPT_FLAG
 		      TINO_GETOPT_MIN
-		      "q	quiet, do not print exit status of child"
+		      "q	quiet, do not print anything"
 		      , &verbose,
 		      -1,
 #if 0
 		      TINO_GETOPT_FLAG
-		      "r	run command non-forking.  Implies -o.\n"
+		      "r	run command non-forking.  Implies -o'-1'.\n"
 		      "		Incompatible with -u"
 		      TINO_GETOPT_FLAG
 		      , &direct_run,
@@ -220,7 +231,7 @@ main(int argc, char **argv)
 
 		      TINO_GETOPT_FLAG
 		      TINO_GETOPT_MIN
-		      "v	verbose, print exit status on error"
+		      "v	verbose, more detailed logging (see also: -l)"
 		      , &verbose,
 		      1,
 		      
@@ -238,7 +249,7 @@ main(int argc, char **argv)
 		      NULL
 		      );
   if (argn<=0)
-    return 1;
+    return tino_exit_default_code;
 
   display	= stdout;
   if (log_fd>=0)
@@ -286,7 +297,7 @@ main(int argc, char **argv)
 	    {
 	      if (verbose>0)
 		fprintf(stderr, "%s: unable to aquire lock %s\n", argv[argn], name);
-	      return ignore_lock_problem ? 0 : 1;
+	      return ignore_lock_problem ? 0 : tino_exit_default_code;
 	    }
 	  if (verbose>0)
 	    fprintf(stderr, "%s: waiting for lock\n", argv[argn]);
