@@ -1,3 +1,7 @@
+2011-06-13  Valentin Hilbig  <tino@firebird.03.softkill.net>
+
+	* lockrun.c (lock_timeout): -q now suppresses timeout message, too
+
 2011-04-20  Valentin Hilbig  <tino@firebird.03.softkill.net>
 
 	* lockrun.c (main): usage corrected

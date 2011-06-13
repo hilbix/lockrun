@@ -18,6 +18,9 @@
  * USA
  *
  * $Log$
+ * Revision 1.13  2011-06-13 14:29:53  tino
+ * Option -q now suppresses timeout message, too (which is the correct behavior).
+ *
  * Revision 1.12  2011-04-20 14:17:59  tino
  * dist
  *
@@ -71,13 +74,15 @@ static const char lockrun_signature[]=
 "INCLUDING THE LAST LINEFEED, BUT NOTHING ELSE.\n";
 
 static int ignore_lock_problem;
+static int verbose;
 
 static int
 lock_timeout(void *user, long delta, time_t now, long run)
 {
   char **argv=user;
 
-  fprintf(stderr, "%s: timeout waiting for lock %s\n", argv[1], argv[0]);
+  if (verbose>=0)
+    fprintf(stderr, "%s: timeout waiting for lock %s\n", argv[1], argv[0]);
   exit(ignore_lock_problem ? 0 : tino_exit_default_code);
 }
 
@@ -114,7 +119,7 @@ bs(FILE *fd, const char *ptr)
 int
 main(int argc, char **argv)
 {
-  int	argn, no_wait, fd, ret, verbose, shared, had_display;
+  int	argn, no_wait, fd, ret, shared, had_display;
   int	create_unlink, fail_missing;
   int	log_fd;
   const char	*name, *env_name, *env_append, *display_wait, *display_clean;

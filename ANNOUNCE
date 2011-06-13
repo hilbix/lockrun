@@ -1,12 +1,1 @@
-Option -m added.
-Option -v can be given twice.
-Minor cosmetic changes like usage pattern corrected for "Invoke shell script only once".
-
-Note that you would want to lock for the shell script's name
-(like presented in the usage) and not for some MAGIC.
-Also note that locking a shell script often does not
-work, as some shells do not like to run locked files.
-
-Option -v now can be more verbose (only in combination with option -u).
-Option -m changes the return code in case the error comes from lockrun
-and not the forked child.
+Option -q now disables timeout message if lock cannot be aquired.
